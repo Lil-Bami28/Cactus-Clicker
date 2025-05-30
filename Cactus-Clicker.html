@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clicker Game met Cactus Upgrades</title>
+<style>
+  body {
+    margin: 0;
+    background: linear-gradient(to bottom, #e0cda9, #d9b382); /* zandkleurige achtergrond */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #3a2f1a;
+    overflow-x: hidden;
+  }
+  #game {
+    max-width: 900px;
+    margin: 20px auto;
+    display: flex;
+    gap: 20px;
+  }
+  #mainArea {
+    flex: 1;
+    text-align: center;
+  }
+  #clickBtn {
+    font-size: 2rem;
+    padding: 20px 40px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    background: #4caf50;
+    color: white;
+    box-shadow: 0 5px #3b7a3b;
+    transition: background 0.3s;
+  }
+  #clickBtn:active {
+    box-shadow: 0 2px #3b7a3b;
+    transform: translateY(3px);
+  }
+  #score {
+    margin-top: 20px;
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  #upgrades {
+    width: 280px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 0 10px #999;
+    user-select: none;
+  }
+  .upgrade {
+    padding: 10px;
+    margin: 10px 0;
+    background: #c8e6c9;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .upgrade:hover:not(.disabled) {
+    background: #a5d6a7;
+  }
+  .disabled {
+    background: #eee !important;
+    color: #999 !important;
+    cursor: not-allowed;
+  }
+  #timers {
+    margin-top: 10px;
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+  /* Cactus illustratie rechtsonder */
+  #cactus {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 150px;
+    opacity: 0.35;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div id="game">
+    <div id="mainArea">
+      <button id="clickBtn">🌵 Klik hier!</button>
+      <div id="score">Punten: 0</div>
+      <div id="timers">
+        <div id="boostTimer"></div>
+        <div id="doubleBoostTimer"></div>
+        <div id="megaBoostTimer"></div>
+        <div id="halfCostTimer"></div>
+      </div>
+    </div>
+    <div id="upgrades">
+      <div id="upgradeClick" class="upgrade disabled">🌵 Upgrade klik (+1 per klik) (Kosten: 10 punten)</div>
+      <div id="upgradeAuto" class="upgrade disabled">🌵 Upgrade automatisch (+1 p/s) (Kosten: 25 punten)</div>
+      <div id="upgradeClick2" class="upgrade disabled">🌵 Mega klik (+5 per klik) (Kosten: 100 punten)</div>
+      <div id="upgradeAuto2" class="upgrade disabled">🌵 Super automaat (+5 p/s) (Kosten: 250 punten)</div>
+      <div id="boostBtn" class="upgrade disabled">🌵 Boost 10s: dubbele punten (Kosten: 500 punten)</div>
+      <div id="boostDouble" class="upgrade disabled">🌵 Double boost 30s (Kosten: 1000 punten)</div>
+      <div id="upgradeClick3" class="upgrade disabled">🌵 Extreme klik (+10 per klik) (Kosten: 2000 punten)</div>
+      <div id="upgradeAuto3" class="upgrade disabled">🌵 Extreme automaat (+10 p/s) (Kosten: 4000 punten)</div>
+      <div id="upgradeClick4" class="upgrade disabled">🌵 Ultra klik (+20 per klik) (Kosten: 8000 punten)</div>
+      <div id="upgradeAuto4" class="upgrade disabled">🌵 Ultra automaat (+20 p/s) (Kosten: 16000 punten)</div>
+      <div id="boostMega" class="upgrade disabled">🌵 Mega boost 20s (Kosten: 32000 punten)</div>
+      <div id="boostHalfCost" class="upgrade disabled">🌵 Half prijs 30s (Kosten: 64000 punten)</div>
+      <div id="upgradeClick5" class="upgrade disabled">🌵 Godlike klik (+50 per klik) (Kosten: 128000 punten)</div>
+      <div id="upgradeAuto5" class="upgrade disabled">🌵 Godlike automaat (+50 p/s) (Kosten: 256000 punten)</div>
+      <div id="upgradeClick6" class="upgrade disabled">🌵 Legend klik (+100 per klik) (Kosten: 512000 punten)</div>
+      <div id="upgradeAuto6" class="upgrade disabled">🌵 Legend automaat (+100 p/s) (Kosten: 1024000 punten)</div>
+    </div>
+  </div>
+  
+  <img id="cactus" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Saguaro_cactus.png/200px-Saguaro_cactus.png" alt="Cactus" />
+  
+<script>
+  let punten = 0;
+  let puntenPerKlik = 1;
+  let puntenPerSeconde = 0;
+
+  let boostActive = false;
+  let boostTimeLeft = 0;
+  let doubleBoostActive = false;
+  let doubleBoostTimeLeft = 0;
+  let megaBoostActive = false;
+  let megaBoostTimeLeft = 0;
+  let halfCostActive = false;
+  let halfCostTimeLeft = 0;
+
+  const upgradeCosts = {
+    upgradeClick: 10,
+    upgradeAuto: 25,
+    upgradeClick2: 100,
+    upgradeAuto2: 250,
+    boostBtn: 500,
+    boostDouble: 1000,
+    upgradeClick3: 2000,
+    upgradeAuto3: 4000,
+    upgradeClick4: 8000,
+    upgradeAuto4: 16000,
+    boostMega: 32000,
+    boostHalfCost: 64000,
+    upgradeClick5: 128000,
+    upgradeAuto5: 256000,
+    upgradeClick6: 512000,
+    upgradeAuto6: 1024000,
+  };
+
+  const upgradeIds = Object.keys(upgradeCosts);
+
+  const scoreEl = document.getElementById('score');
+  const clickBtn = document.getElementById('clickBtn');
+  const upgradeEls = {};
+  upgradeIds.forEach(id => {
+    upgradeEls[id] = document.getElementById(id);
+  });
+
+  // Audio
+  const audioUpgrade = new Audio('https://freesound.org/data/previews/146/146729_2519020-lq.mp3');
+
+  function speelUpgradeGeluid() {
+    audioUpgrade.pause();
+    audioUpgrade.currentTime = 0;
+    audioUpgrade.play().catch(() => {});
+  }
+
+  clickBtn.addEventListener('click', () => {
+    let clickValue = puntenPerKlik;
+
+    if (boostActive) clickValue *= 2;
+    if (doubleBoostActive) clickValue *= 2;
+    if (megaBoostActive) clickValue *= 3;
+
+    punten += clickValue;
+    updateScore();
+    checkUpgrades();
+  });
+
+  function koopUpgrade(id) {
+    let cost = upgradeCosts[id];
+    if (halfCostActive) cost = Math.floor(cost / 2);
+    if (punten < cost) return;
+
+    punten -= cost;
+
+    switch (id) {
+      case 'upgradeClick':
+        puntenPerKlik += 1;
+        break;
+      case 'upgradeAuto':
+        puntenPerSeconde += 1;
+        break;
+      case 'upgradeClick2':
+        puntenPerKlik += 5;
+        break;
+      case 'upgradeAuto2':
+        puntenPerSeconde += 5;
+        break;
+      case 'boostBtn':
+        startBoost(10);
+        break;
+      case 'boostDouble':
+        startDoubleBoost(30);
+        break;
+      case 'upgradeClick3':
+        puntenPerKlik += 10;
+        break;
+      case 'upgradeAuto3':
+        puntenPerSeconde += 10;
+        break;
+      case 'upgradeClick4':
+        puntenPerKlik += 20;
+        break;
+      case 'upgradeAuto4':
+        puntenPerSeconde += 20;
+        break;
+      case 'boostMega':
+        startMegaBoost(20);
+        break;
+      case 'boostHalfCost':
+        startHalfCost(30);
+        break;
+      case 'upgradeClick5':
+        puntenPerKlik += 50;
+        break;
+      case 'upgradeAuto5':
+        puntenPerSeconde += 50;
+        break;
+      case 'upgradeClick6':
+        puntenPerKlik += 100;
+        break;
+      case 'upgradeAuto6':
+        puntenPerSeconde += 100;
+        break;
+    }
+    speelUpgradeGeluid();
+    updateScore();
+    checkUpgrades();
+  }
+
+  // Kijken of upgrade beschikbaar is
+  function checkUpgrades() {
+    upgradeIds.forEach(id => {
+      let cost = upgradeCosts[id];
+      if (halfCostActive) cost = Math.floor(cost / 2);
+
+      if (punten >= cost) {
+        upgradeEls[id].classList.remove('disabled');
+      } else {
+        upgradeEls[id].classList.add('disabled');
+      }
+    });
+  }
+
+  // Boost timers
+
+  function startBoost(seconden) {
+    boostActive = true;
+    boostTimeLeft = seconden;
+  }
+
+  function startDoubleBoost(seconden) {
+    doubleBoostActive = true;
+    doubleBoostTimeLeft = seconden;
+  }
+
+  function startMegaBoost(seconden) {
+    megaBoostActive = true;
+    megaBoostTimeLeft = seconden;
+  }
+
+  function startHalfCost(seconden) {
+    halfCostActive = true;
+    halfCostTimeLeft = seconden;
+  }
+
+  function updateTimers() {
+    if (boostActive) {
+      boostTimeLeft--;
+      if (boostTimeLeft <= 0) boostActive = false;
+    }
+    if (doubleBoostActive) {
+      doubleBoostTimeLeft--;
+      if (doubleBoostTimeLeft <= 0) doubleBoostActive = false;
+    }
+    if (megaBoostActive) {
+      megaBoostTimeLeft--;
+      if (megaBoostTimeLeft <= 0) megaBoostActive = false;
+    }
+    if (halfCostActive) {
+      halfCostTimeLeft--;
+      if (halfCostTimeLeft <= 0) halfCostActive = false;
+    }
+    updateTimerUI();
+    checkUpgrades();
+  }
+
+  function updateTimerUI() {
+    document.getElementById('boostTimer').textContent = boostActive ? `Boost actief: ${boostTimeLeft}s` : '';
+    document.getElementById('doubleBoostTimer').textContent = doubleBoostActive ? `Double boost actief: ${doubleBoostTimeLeft}s` : '';
+    document.getElementById('megaBoostTimer').textContent = megaBoostActive ? `Mega boost actief: ${megaBoostTimeLeft}s` : '';
+    document.getElementById('halfCostTimer').textContent = halfCostActive ? `Half prijs actief: ${halfCostTimeLeft}s` : '';
+  }
+
+  // Punten per seconde toevoegen
+  setInterval(() => {
+    let pps = puntenPerSeconde;
+    if (boostActive) pps *= 2;
+    if (doubleBoostActive) pps *= 2;
+    if (megaBoostActive) pps *= 3;
+    punten += pps;
+    updateScore();
+    checkUpgrades();
+  }, 1000);
+
+  // Timers aflopen
+  setInterval(() => {
+    updateTimers();
+  }, 1000);
+
+  // Score update
+  function updateScore() {
+    scoreEl.textContent = `Punten: ${punten}`;
+  }
+
+  // Koppelen upgrade buttons
+  upgradeIds.forEach(id => {
+    upgradeEls[id].addEventListener('click', () => {
+      if (!upgradeEls[id].classList.contains('disabled')) {
+        koopUpgrade(id);
+      }
+    });
+  });
+
+  // Start met updatet check
+  checkUpgrades();
+  updateScore();
+
+</script>
+</body>
+</html>
